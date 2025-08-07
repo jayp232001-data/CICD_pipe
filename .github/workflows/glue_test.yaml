@@ -11,16 +11,16 @@ on:
     branches:
       - main
     paths:
-      - 'glue-scripts/'
+      - 'Scripts/**'
 
 jobs:
   glue_pipeline:
     runs-on: ubuntu-latest
 
     env:
-      SCRIPT_PATH: glue-scripts/your_glue_script.py
+      SCRIPT_PATH: Scripts/transform.py
       S3_BUCKET_SCRIPT: ${{ secrets.GLUE_SCRIPT_BUCKET }}
-      S3_SCRIPT_KEY: glue-scripts/your_glue_script.py
+      S3_SCRIPT_KEY: Glue_script/transformation_script/transform.py
 
     steps:
 
