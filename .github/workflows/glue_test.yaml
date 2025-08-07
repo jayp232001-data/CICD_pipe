@@ -1,10 +1,4 @@
-# --------------------------------------------------------------------------------
-# GitHub Actions Workflow: glue-ci-cd.yml
-# Purpose: Full CI/CD for AWS Glue scripts including Terraform deployment, Glue Job & Crawler
-# Location: .github/workflows/glue-ci-cd.yml
-# --------------------------------------------------------------------------------
-
-name: Texas Lottery Glue CI/CD  # Workflow name
+name: Texas Lottery Glue CI/CD
 
 on:
   push:
@@ -19,21 +13,18 @@ jobs:
 
     env:
       SCRIPT_PATH: Scripts/transform.py
-      S3_BUCKET_SCRIPT: ${{ secrets.GLUE_SCRIPT_BUCKET }}
-      
 
     steps:
-
 
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # optional
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
       - name: Set Up Python
@@ -50,11 +41,6 @@ jobs:
           pylint $SCRIPT_PATH || echo "Lint warnings (non-blocking)"
 
       - name: Upload Script to S3
-        # env:
-        #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        #   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        #   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-        #   AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
           aws s3 cp $SCRIPT_PATH s3://jay-patil-script-bucket/Glue_script/transformation_script/transform(1).py
 
@@ -71,11 +57,6 @@ jobs:
 
       - name: Terraform Apply with Variables
         working-directory: terraform/
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_DEFAULT_REGION: us-east-1
         run: |
           terraform apply -auto-approve \
             -var="aws_region=${{ secrets.AWS_REGION }}" \
@@ -86,24 +67,12 @@ jobs:
             -var="raw_glue_database=${{ secrets.RAW_GLUE_DATABASE }}" \
             -var="transformed_glue_database=${{ secrets.TRANSFORMED_GLUE_DATABASE }}"
 
-      - name: Configure AWS Credentials for Glue Execution
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} 
-          aws-region: us-east-1
-
       - name: Run Glue Job and Crawler
-        env:
-          AWS_REGION: us-east-1
-          GLUE_JOB_NAME: ${{ secrets.GLUE_JOB_NAME }}
-          CRAWLER_NAME: ${{ secrets.CRAWLER_NAME }}
         run: |
           echo "Starting Glue Job..."
           JOB_RUN_ID=$(aws glue start-job-run \
-            --region "$AWS_REGION" \
-            --job-name "$GLUE_JOB_NAME" \
+            --region "us-east-1" \
+            --job-name "${{ secrets.GLUE_JOB_NAME }}" \
             --query 'JobRunId' \
             --output text)
 
@@ -112,8 +81,8 @@ jobs:
 
           while true; do
             STATUS=$(aws glue get-job-run \
-              --region "$AWS_REGION" \
-              --job-name "$GLUE_JOB_NAME" \
+              --region "us-east-1" \
+              --job-name "${{ secrets.GLUE_JOB_NAME }}" \
               --run-id "$JOB_RUN_ID" \
               --query 'JobRun.JobRunState' \
               --output text)
@@ -135,4 +104,5 @@ jobs:
           sleep 120
 
           echo "Starting transformed data crawler..."
-          aws glue start-crawler --region "$AWS_REGION" --name "$CRAWLER_NAME"
+          aws glue start-crawler --region "us-east-1" --name "${{ secrets.CRAWLER_NAME }}"
+
