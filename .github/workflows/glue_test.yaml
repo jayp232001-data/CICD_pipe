@@ -1,0 +1,129 @@
+# --------------------------------------------------------------------------------
+# GitHub Actions Workflow: glue-ci-cd.yml
+# Purpose: Full CI/CD for AWS Glue scripts including Terraform deployment, Glue Job & Crawler
+# Location: .github/workflows/glue-ci-cd.yml
+# --------------------------------------------------------------------------------
+
+name: Texas Lottery Glue CI/CD  # Workflow name
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'glue-scripts/'
+
+jobs:
+  glue_pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      SCRIPT_PATH: glue-scripts/your_glue_script.py
+      S3_BUCKET_SCRIPT: ${{ secrets.GLUE_SCRIPT_BUCKET }}
+      S3_SCRIPT_KEY: glue-scripts/your_glue_script.py
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install boto3 pylint
+
+      - name: Lint/Test Glue Script
+        run: |
+          pylint $SCRIPT_PATH || echo "Lint warnings (non-blocking)"
+
+      - name: Upload Script to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws s3 cp $SCRIPT_PATH s3://$S3_BUCKET_SCRIPT/$S3_SCRIPT_KEY
+
+      - name: Set Up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        working-directory: terraform/
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/
+        run: terraform validate
+
+      - name: Terraform Apply with Variables
+        working-directory: terraform/
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          terraform apply -auto-approve \
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="iam_role=${{ secrets.IAM_ROLE }}" \
+            -var="raw_data_s3_path=${{ secrets.RAW_DATA_S3_PATH }}" \
+            -var="transformed_data_s3_path=${{ secrets.TRANSFORMED_DATA_S3_PATH }}" \
+            -var="glue_script_s3_path=${{ secrets.GLUE_SCRIPT_S3_PATH }}" \
+            -var="raw_glue_database=${{ secrets.RAW_GLUE_DATABASE }}" \
+            -var="transformed_glue_database=${{ secrets.TRANSFORMED_GLUE_DATABASE }}"
+
+      - name: Configure AWS Credentials for Glue Execution
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Run Glue Job and Crawler
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          GLUE_JOB_NAME: ${{ secrets.GLUE_JOB_NAME }}
+          CRAWLER_NAME: ${{ secrets.CRAWLER_NAME }}
+        run: |
+          echo "Starting Glue Job..."
+          JOB_RUN_ID=$(aws glue start-job-run \
+            --region "$AWS_REGION" \
+            --job-name "$GLUE_JOB_NAME" \
+            --query 'JobRunId' \
+            --output text)
+
+          echo "Started job with ID: $JOB_RUN_ID"
+          echo "Polling until job completes..."
+
+          while true; do
+            STATUS=$(aws glue get-job-run \
+              --region "$AWS_REGION" \
+              --job-name "$GLUE_JOB_NAME" \
+              --run-id "$JOB_RUN_ID" \
+              --query 'JobRun.JobRunState' \
+              --output text)
+
+            echo "Current status: $STATUS"
+
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              echo "Job completed successfully."
+              break
+            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "STOPPED" ]; then
+              echo "Job failed or was stopped."
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "Waiting 2 minutes for data to flush to S3..."
+          sleep 120
+
+          echo "Starting transformed data crawler..."
+          aws glue start-crawler --region "$AWS_REGION" --name "$CRAWLER_NAME"
