@@ -21,9 +21,10 @@ job.init(args['JOB_NAME'], args)
 # Step 1: Read from AWS Glue Data Catalog
 df = glueContext.create_dynamic_frame.from_catalog(
     database="test_db",
-    table_name="texas_lottery_csv",
+    table_name="lottery_sales",
     transformation_ctx="datasource"
 ).toDF()
+
 
 # Step 8: Drop unwanted columns (exact matches)
 columns_to_drop = [
