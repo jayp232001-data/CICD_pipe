@@ -106,6 +106,26 @@ jobs:
 
           echo "Starting transformed data crawler..."
           aws glue start-crawler --region "us-east-1" --name "${{ secrets.CRAWLER_NAME }}"
+      
+      - name: Wait for Crawler to Finish Before Destroy
+        run: |
+          echo "Waiting for crawler to finish..."
+          while true; do
+            STATUS=$(aws glue get-crawler --name "${{ secrets.CRAWLER_NAME }}" --query 'Crawler.State' --output text || echo "NOT_FOUND")
+            echo "Crawler status: $STATUS"
+
+            if [ "$STATUS" = "READY" ]; then
+              echo "Crawler is idle, safe to destroy."
+              break
+            elif [ "$STATUS" = "NOT_FOUND" ]; then
+              echo "Crawler not found, maybe already deleted."
+              break
+            else
+              echo "Crawler still running. Sleeping 30 seconds..."
+              sleep 30
+            fi
+          done
+
 
       - name: Terraform Destroy (Cleanup)
         if: always()
