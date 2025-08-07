@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: us-east-1
       SCRIPT_PATH: Scripts/transform.py
       S3_BUCKET_SCRIPT: ${{ secrets.GLUE_SCRIPT_BUCKET }}
       
@@ -35,7 +34,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # optional
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Set Up Python
         uses: actions/setup-python@v4
@@ -76,7 +75,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           terraform apply -auto-approve \
             -var="aws_region=${{ secrets.AWS_REGION }}" \
@@ -93,11 +92,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} 
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Run Glue Job and Crawler
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_REGION: us-east-1
           GLUE_JOB_NAME: ${{ secrets.GLUE_JOB_NAME }}
           CRAWLER_NAME: ${{ secrets.CRAWLER_NAME }}
         run: |
