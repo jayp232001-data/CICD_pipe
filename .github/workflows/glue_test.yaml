@@ -107,3 +107,17 @@ jobs:
           echo "Starting transformed data crawler..."
           aws glue start-crawler --region "us-east-1" --name "${{ secrets.CRAWLER_NAME }}"
 
+      - name: Terraform Destroy (Cleanup)
+        if: always()
+        working-directory: terraform/
+        run: |
+          echo "Destroying all Terraform-managed resources..."
+          terraform destroy -auto-approve \
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="iam_role=${{ secrets.IAM_ROLE }}" \
+            -var="raw_data_s3_path=${{ secrets.RAW_DATA_S3_PATH }}" \
+            -var="transformed_data_s3_path=${{ secrets.TRANSFORMED_DATA_S3_PATH }}" \
+            -var="glue_script_s3_path=${{ secrets.GLUE_SCRIPT_S3_PATH }}" \
+            -var="raw_glue_database=${{ secrets.RAW_GLUE_DATABASE }}" \
+            -var="transformed_glue_database=${{ secrets.TRANSFORMED_GLUE_DATABASE }}"
+
