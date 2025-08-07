@@ -57,7 +57,7 @@ jobs:
         #   AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         #   AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          aws s3 cp $SCRIPT_PATH s3://$S3_BUCKET_SCRIPT/Glue_script/transformation_script/transform.py
+          aws s3 cp $SCRIPT_PATH s3://jay-patil-script-bucket/Glue_script/transformation_script/transform(1).py
 
       - name: Set Up Terraform
         uses: hashicorp/setup-terraform@v2
