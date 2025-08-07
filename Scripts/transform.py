@@ -10,7 +10,7 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.window import Window
 
-# Initialize Glue job (1st  step)
+# Initialize Glue job (1st)
 args = getResolvedOptions(sys.argv, ['JOB_NAME'])
 sc = SparkContext()
 glueContext = GlueContext(sc)
