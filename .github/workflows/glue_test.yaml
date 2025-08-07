@@ -42,7 +42,8 @@ jobs:
 
       - name: Upload Script to S3
         run: |
-          aws s3 cp $SCRIPT_PATH s3://jay-patil-script-bucket/Glue_script/transformation_script/transform(1).py
+          aws s3 cp "$SCRIPT_PATH" "s3://jay-patil-script-bucket/Glue_script/transformation_script/transform(1).py"
+
 
       - name: Set Up Terraform
         uses: hashicorp/setup-terraform@v2
